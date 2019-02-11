@@ -1,0 +1,68 @@
+from requests import *
+
+login = input("Login: ")
+password = input("Password: ")
+
+header = {'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 YaBrowser/18.10.2.163 Yowser/2.5 Safari/537.36',
+          'Referer': 'https://my.mail.ru/?fail=1',
+          'Upgrade-Insecure-Requests': '1',
+          }
+
+data = {'page': 'https://my.mail.ru/',
+'FailPage': 'https://my.mail.ru/cgi-bin/login?fail=1',
+'Login': login,
+'Domain': 'mail.ru',
+'Password': password}
+
+s = session()
+
+r = s.post('https://auth.mail.ru/cgi-bin/auth', data=data, headers=header,verify=False)
+
+r = s.get('https://e.mail.ru/messages/inbox/',verify=False)
+
+token = r.text
+token = token[token.find('patron.updateToken('):]
+token = token[:token.find('")')]
+token = token[token.find('"') + 1:]
+
+
+mainmsg = {
+    'ajax_call':'1',
+    'x-email': login,
+    'o_ss':'',
+    'o_v':'',
+    'email': login,
+    'offset':'0',
+    'htmlencoded':'false',
+    'id':'' ,
+    'api':'1',
+    'token':token
+}
+
+idmsg = {
+    'ajax_call':'1',
+    'x-email': login,
+    'o_ss':'',
+    'o_v':'',
+    'email': login,
+    'offset':'0',
+    'limit': '',
+    'folder':'0',
+    'htmlencoded':'false',
+    'last_modified':'-1',
+    'filters':'{}',
+    'nolog':'0',
+    'sortby':'D',
+    'api':'1',
+    'token': token
+}
+
+r = s.get('https://e.mail.ru/api/v1/threads/status/smart', params=idmsg,verify=False)
+idmsg['limit'] = r.json()['body']['threads_total']
+r = s.get('https://e.mail.ru/api/v1/threads/status/smart', params=idmsg,verify=False)
+
+for i in r.json()['body']['threads']:
+    mainmsg['id'] = i['id']
+    r = s.get('https://e.mail.ru/api/v1/threads/thread', params=mainmsg, verify=False)
+    print(r.json()['body']['messages'][0]['body']['text'])
+    print('\n')
